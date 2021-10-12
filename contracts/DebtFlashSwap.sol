@@ -9,13 +9,15 @@ import './libraries/UniswapV2Library.sol';
 
 import 'openzeppelin-solidity/contracts/token/ERC20/utils/SafeERC20.sol';
 
+import 'hardhat/console.sol';
+
 
 contract DebtFlashSwap is IUniswapV2Callee {
     using SafeERC20 for IERC20;
 
-    address private constant AAVE_LENDING_POOL = 0x6A8730F54b8C69ab096c43ff217CA0a350726ac7;
-    address private constant QUICKSWAP_ROUTER = 0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff;
-    address private constant QUICKSWAP_FACTORY = 0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32;
+    address private constant AAVE_LENDING_POOL = 0x8dFf5E27EA6b7AC08EbFdf9eB090F32ee9a30fcf;
+    address private constant QUICKSWAP_ROUTER = 0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506;
+    address private constant QUICKSWAP_FACTORY = 0xc35DADB65012eC5796536bD9864eD8773aBc74C4;
     
     function swapDebtToken(address _debtToken, address _newDebtToken, uint _amount) external {
         address pair = IUniswapV2Factory(QUICKSWAP_FACTORY).getPair(_debtToken, _newDebtToken);
@@ -23,10 +25,10 @@ contract DebtFlashSwap is IUniswapV2Callee {
 
         address token0 = IUniswapV2Pair(pair).token0();
         address token1 = IUniswapV2Pair(pair).token1();
-        uint amount0Out = _newDebtToken == token0 ? _amount : 0;
-        uint amount1Out = _newDebtToken == token1 ? _amount : 0;
+        uint amount0Out = _debtToken == token0 ? _amount : 0;
+        uint amount1Out = _debtToken == token1 ? _amount : 0;
 
-        bytes memory data = abi.encode(_debtToken, _newDebtToken, _amount, msg.sender);
+        bytes memory data = abi.encode(_debtToken, _newDebtToken, msg.sender, _amount);
 
         IUniswapV2Pair(pair).swap(amount0Out, amount1Out, address(this), data);
 
@@ -61,8 +63,8 @@ contract DebtFlashSwap is IUniswapV2Callee {
         )[0];
 
         IERC20(debtToken).approve(AAVE_LENDING_POOL, amount);
-        ILendingPool(AAVE_LENDING_POOL).repay(debtToken, amount, 2, user);
-        ILendingPool(AAVE_LENDING_POOL).borrow(newDebtToken, amountRequired, 2, 0, user);
+        ILendingPool(AAVE_LENDING_POOL).repay(debtToken, amount, 2, address(user));
+        ILendingPool(AAVE_LENDING_POOL).borrow(newDebtToken, amountRequired, 2, 0, address(user));
 
         IERC20(newDebtToken).transfer(pair, amountRequired);
     }
