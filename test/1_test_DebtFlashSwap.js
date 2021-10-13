@@ -121,12 +121,12 @@ describe("DebtFlashSwap Unit Tests", function () {
     const wethDebtBalAfter = await wethDebt.balanceOf(user.address);
     const daiDebtBalAfter = await daiDebt.balanceOf(user.address);
 
-    console.log("DAI Debt Before", daiDebtBalBefore)
-    console.log("WETH Debt Before", wethDebtBalBefore)
-    console.log("DAI Debt After", daiDebtBalAfter)
-    console.log("WETH Debt After", wethDebtBalAfter)
+    console.log("DAI Debt Before", ethers.utils.formatEther(daiDebtBalBefore));
+    console.log("WETH Debt Before", ethers.utils.formatEther(wethDebtBalBefore));
+    console.log("DAI Debt After", ethers.utils.formatEther(daiDebtBalAfter));
+    console.log("WETH Debt After", ethers.utils.formatEther(wethDebtBalAfter));
 
-    expect(wethDebtBal).to.equal(0)
+    expect(wethDebtBalAfter).to.equal(0)
     expect(daiDebtBal > 0).to.equal(true)
   });
 });
