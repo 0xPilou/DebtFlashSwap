@@ -11,9 +11,6 @@ import './libraries/UniswapV2Library.sol';
 
 import 'openzeppelin-solidity/contracts/token/ERC20/utils/SafeERC20.sol';
 
-import 'hardhat/console.sol';
-
-
 contract DebtFlashSwap is IUniswapV2Callee {
     using SafeERC20 for IERC20;
 
@@ -22,13 +19,18 @@ contract DebtFlashSwap is IUniswapV2Callee {
     address private constant QUICKSWAP_FACTORY = 0xc35DADB65012eC5796536bD9864eD8773aBc74C4;
 
     function swapDebtToken(address _debtToken, address _newDebtToken) external {
+        // Get address of UniswapV2Pair contract
         address pair = IUniswapV2Factory(QUICKSWAP_FACTORY).getPair(_debtToken, _newDebtToken);
+        // Check that the pair exists
         require(pair != address(0), "!! This pair does not exists !!");
 
+        // Get the address of the AAVE Variable Debt Token corresponding to the underlying token
         (,, address vDebtTokenAddr) = IProtocolDataProvider(AAVE_DATA_PROVIDER).getReserveTokensAddresses(_debtToken);
 
+        // Get the exact debt amount of the user 
         uint amount = IVariableDebtToken(vDebtTokenAddr).balanceOf(msg.sender);
 
+        // Define the trade direction
         address token0 = IUniswapV2Pair(pair).token0();
         address token1 = IUniswapV2Pair(pair).token1();
         uint amount0Out = _debtToken == token0 ? amount : 0;
@@ -38,14 +40,17 @@ contract DebtFlashSwap is IUniswapV2Callee {
         path[0] = _newDebtToken;
         path[1] = _debtToken;
 
+        // Get the exact amount of _newDebtToken to be returned to the Uniswap Pool
         uint amountRequired = UniswapV2Library.getAmountsIn(
             QUICKSWAP_FACTORY,
             amount,
             path
         )[0];
 
+        // Encode the data required for the callback function operations
         bytes memory data = abi.encode(_debtToken, _newDebtToken, msg.sender, amount, amountRequired);
 
+        // Initiate the flash swap
         IUniswapV2Pair(pair).swap(amount0Out, amount1Out, address(this), data);
 
     }
@@ -62,15 +67,28 @@ contract DebtFlashSwap is IUniswapV2Callee {
         
         address pair = IUniswapV2Factory(QUICKSWAP_FACTORY).getPair(token0, token1);
         
-        require(msg.sender == pair, "!! You are not QuickSwap Pair Smart Contract !!");
-        require(_sender == address(this), "!! This flashloan is not originated from DebtFlashSwap Smart Contract !!");
+        // Check that the callback is being called by the UniswapV2Pair contract
+        require(msg.sender == pair, "Not UniswapV2Pair Smart Contract");
+        
+        // Check that the flashswap originiated from DebtFlashSwap contract
+        require(_sender == address(this), "Not originated from DebtFlashSwap Smart Contract");
+        
+        // Check that only one asset is borrowed
         require(_amount0 == 0 || _amount1 == 0, "!! Cannot borrow two currencies at the same time !!");
+        
+        // Decode the encoded data required for the operations
         (address debtToken, address newDebtToken, address user, uint amount, uint amountRequired) = abi.decode(_data, (address, address, address, uint, uint));
 
+        // Approve AAVE Lending Pool to spend 'amount' of Debt Token
         IERC20(debtToken).approve(AAVE_LENDING_POOL, amount);
+
+        // Repay the amount of Debt Token on behalf of the user
         ILendingPool(AAVE_LENDING_POOL).repay(debtToken, amount, 2, address(user));
+
+        // Borrow the amount required of New Debt Token on behalf of the user
         ILendingPool(AAVE_LENDING_POOL).borrow(newDebtToken, amountRequired, 2, 0, address(user));
 
+        // Pay back amount required of New Debt Token to UniswapV2Pair
         IERC20(newDebtToken).transfer(msg.sender, amountRequired);
     }
 
