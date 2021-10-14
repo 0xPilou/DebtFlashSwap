@@ -116,7 +116,8 @@ describe("DebtFlashSwap Unit Tests", function () {
     const daiDebtBalBefore = await daiDebt.balanceOf(user.address);
 
     await daiDebt.connect(user).approveDelegation(debtFlashSwap.address, weiAmountToApprove)
-    await debtFlashSwap.connect(user).swapDebtToken(weth.address, dai.address, weiAmount);
+    //await debtFlashSwap.connect(user).swapDebtToken(weth.address, dai.address, weiAmount);
+    await debtFlashSwap.connect(user).swapDebtToken(weth.address, dai.address);
 
     const wethDebtBalAfter = await wethDebt.balanceOf(user.address);
     const daiDebtBalAfter = await daiDebt.balanceOf(user.address);
@@ -127,7 +128,7 @@ describe("DebtFlashSwap Unit Tests", function () {
     console.log("WETH Debt After", ethers.utils.formatEther(wethDebtBalAfter));
 
     expect(wethDebtBalAfter).to.equal(0)
-    expect(daiDebtBal > 0).to.equal(true)
+    expect(daiDebtBalAfter > 0).to.equal(true)
   });
 });
 
