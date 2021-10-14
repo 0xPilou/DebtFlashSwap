@@ -10,17 +10,32 @@ import './interfaces/IVariableDebtToken.sol';
 import './libraries/UniswapV2Library.sol';
 
 import 'openzeppelin-solidity/contracts/token/ERC20/utils/SafeERC20.sol';
+import 'openzeppelin-solidity/contracts/utils/math/SafeMath.sol';
+
 
 contract DebtFlashSwap is IUniswapV2Callee {
     using SafeERC20 for IERC20;
+    using SafeMath for uint256;
 
-    address private constant AAVE_DATA_PROVIDER = 0x7551b5D2763519d4e37e8B81929D336De671d46d;
-    address private constant AAVE_LENDING_POOL = 0x8dFf5E27EA6b7AC08EbFdf9eB090F32ee9a30fcf;
-    address private constant QUICKSWAP_FACTORY = 0xc35DADB65012eC5796536bD9864eD8773aBc74C4;
+    // Address of AAVE Data Provider contract
+    address private AAVE_DATA_PROVIDER;
+    
+    // Address of AAVE Lending Pool contract
+    address private AAVE_LENDING_POOL;
 
-    function swapDebtToken(address _debtToken, address _newDebtToken) external {
+    // Address of UniswapV2 Factory (fork) contract
+    address private UNISWAP_FACTORY; 
+
+    constructor(address _dataProvider, address _lendingPool, address _uniswapFactory) {
+        AAVE_DATA_PROVIDER = _dataProvider;
+        AAVE_LENDING_POOL = _lendingPool;
+        UNISWAP_FACTORY = _uniswapFactory;
+    }
+
+    function swapFullDebt(address _debtToken, address _newDebtToken) external {
         // Get address of UniswapV2Pair contract
-        address pair = IUniswapV2Factory(QUICKSWAP_FACTORY).getPair(_debtToken, _newDebtToken);
+        address pair = IUniswapV2Factory(UNISWAP_FACTORY).getPair(_debtToken, _newDebtToken);
+
         // Check that the pair exists
         require(pair != address(0), "!! This pair does not exists !!");
 
@@ -35,14 +50,13 @@ contract DebtFlashSwap is IUniswapV2Callee {
         address token1 = IUniswapV2Pair(pair).token1();
         uint amount0Out = _debtToken == token0 ? amount : 0;
         uint amount1Out = _debtToken == token1 ? amount : 0;
-
         address[] memory path = new address[](2);
         path[0] = _newDebtToken;
         path[1] = _debtToken;
 
         // Get the exact amount of _newDebtToken to be returned to the Uniswap Pool
         uint amountRequired = UniswapV2Library.getAmountsIn(
-            QUICKSWAP_FACTORY,
+            UNISWAP_FACTORY,
             amount,
             path
         )[0];
@@ -52,7 +66,49 @@ contract DebtFlashSwap is IUniswapV2Callee {
 
         // Initiate the flash swap
         IUniswapV2Pair(pair).swap(amount0Out, amount1Out, address(this), data);
+    }
 
+    function swapPartialDebt(address _debtToken, address _newDebtToken, uint256 _basisPoint) external {
+        require(_basisPoint <= 10000, "Incorrect Basis Point parameter");
+
+        // Get address of UniswapV2Pair contract
+        address pair = IUniswapV2Factory(UNISWAP_FACTORY).getPair(_debtToken, _newDebtToken);
+
+        // Check that the pair exists
+        require(pair != address(0), "!! This pair does not exists !!");
+
+        // Get the address of the AAVE Variable Debt Token corresponding to the underlying token
+        (,, address vDebtTokenAddr) = IProtocolDataProvider(AAVE_DATA_PROVIDER).getReserveTokensAddresses(_debtToken);
+
+        // Get the exact debt amount of the user 
+        uint totalDebtAmount = IVariableDebtToken(vDebtTokenAddr).balanceOf(msg.sender);
+
+        // Calculate the amount of debt to be swapped based on the basis point parameter
+        // Friendly Reminder : 1000 basis point = 10 %
+        // amount to repay = total debt amount * basis point / 10000
+        uint amount = totalDebtAmount.mul(_basisPoint).div(10000);
+
+        // Define the trade direction
+        address token0 = IUniswapV2Pair(pair).token0();
+        address token1 = IUniswapV2Pair(pair).token1();
+        uint amount0Out = _debtToken == token0 ? amount : 0;
+        uint amount1Out = _debtToken == token1 ? amount : 0;
+        address[] memory path = new address[](2);
+        path[0] = _newDebtToken;
+        path[1] = _debtToken;
+
+        // Get the exact amount of _newDebtToken to be returned to the Uniswap Pool
+        uint amountRequired = UniswapV2Library.getAmountsIn(
+            UNISWAP_FACTORY,
+            amount,
+            path
+        )[0];
+
+        // Encode the data required for the callback function operations
+        bytes memory data = abi.encode(_debtToken, _newDebtToken, msg.sender, amount, amountRequired);
+
+        // Initiate the flash swap
+        IUniswapV2Pair(pair).swap(amount0Out, amount1Out, address(this), data);
     }
 
     function uniswapV2Call(
@@ -62,10 +118,10 @@ contract DebtFlashSwap is IUniswapV2Callee {
         bytes calldata _data
     ) external override {
 
+        // Get the necessary contract addresses
         address token0 = IUniswapV2Pair(msg.sender).token0();
         address token1 = IUniswapV2Pair(msg.sender).token1();
-        
-        address pair = IUniswapV2Factory(QUICKSWAP_FACTORY).getPair(token0, token1);
+        address pair = IUniswapV2Factory(UNISWAP_FACTORY).getPair(token0, token1);
         
         // Check that the callback is being called by the UniswapV2Pair contract
         require(msg.sender == pair, "Not UniswapV2Pair Smart Contract");
@@ -91,5 +147,4 @@ contract DebtFlashSwap is IUniswapV2Callee {
         // Pay back amount required of New Debt Token to UniswapV2Pair
         IERC20(newDebtToken).transfer(msg.sender, amountRequired);
     }
-
 }
