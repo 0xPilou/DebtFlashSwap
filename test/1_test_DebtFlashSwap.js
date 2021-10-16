@@ -20,7 +20,7 @@ describe("DebtFlashSwap Unit Tests", function () {
   const DAIabi = require("../external_abi/DAI.json");
   const variableDebtTokenABI = require("../external_abi/variableDebtToken.json");
 
-  /* Adresses */
+  /* Addresses */
   // USDC
   const USDC = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
   const USDCdebt = "0x248960A9d75EdFa3de94F7193eae3161Eb349a12";
@@ -144,7 +144,7 @@ describe("DebtFlashSwap Unit Tests", function () {
     await daiDebt.connect(user).approveDelegation(debtFlashSwap.address, weiAmountToApprove)
     console.log("Swapping WETH debt for DAI debt")
     console.log("--------------------------------------------------------------------------------");
-    await debtFlashSwap.connect(user).swapFullDebt(weth.address, dai.address);
+    await debtFlashSwap.connect(user).swapFullDebt(weth.address, dai.address, 2);
 
     const wethDebtBalAfter = await wethDebt.balanceOf(user.address);
     const daiDebtBalAfter = await daiDebt.balanceOf(user.address);
@@ -176,13 +176,14 @@ describe("DebtFlashSwap Unit Tests", function () {
     await usdcDebt.connect(user).approveDelegation(debtFlashSwap.address, weiAmountToApprove)
     console.log("Swapping DAI debt for USDC debt")
     console.log("--------------------------------------------------------------------------------");
-    await debtFlashSwap.connect(user).swapFullDebt(dai.address, usdc.address);
+    await debtFlashSwap.connect(user).swapFullDebt(dai.address, usdc.address, 2);
 
     const daiDebtBalAfter = await daiDebt.balanceOf(user.address);
     const usdcDebtBalAfter = await usdcDebt.balanceOf(user.address);
 
     console.log("DAI Debt : ", ethers.utils.formatEther(daiDebtBalAfter));
     console.log("USDC Debt : ", ethers.utils.formatUnits(usdcDebtBalAfter, usdcDebtDecimals));
+    console.log("--------------------------------------------------------------------------------");
     console.log("--------------------------------------------------------------------------------");
 
     expect(daiDebtBalAfter).to.equal(0)
@@ -209,13 +210,14 @@ describe("DebtFlashSwap Unit Tests", function () {
 
     console.log("Swapping 50% of USDC debt for WMATIC debt")
     console.log("--------------------------------------------------------------------------------");
-    await debtFlashSwap.connect(user).swapPartialDebt(usdc.address, wmatic.address, 5000);
+    await debtFlashSwap.connect(user).swapPartialDebt(usdc.address, wmatic.address, 5000, 2);
 
     const usdcDebtBalAfter = await usdcDebt.balanceOf(user.address);
     const wmaticDebtBalAfter = await wmaticDebt.balanceOf(user.address);
 
     console.log("USDC Debt : ", ethers.utils.formatUnits(usdcDebtBalAfter, usdcDebtDecimals));
     console.log("WMATIC Debt : ", ethers.utils.formatEther(wmaticDebtBalAfter));
+    console.log("--------------------------------------------------------------------------------");
     console.log("--------------------------------------------------------------------------------");
 
     expect(wmaticDebtBalAfter > 0).to.equal(true)
@@ -246,7 +248,7 @@ describe("DebtFlashSwap Unit Tests", function () {
 
     console.log("Swapping 90% of the WMATIC debt into WBTC debt")
     console.log("--------------------------------------------------------------------------------");
-    await debtFlashSwap.connect(user).swapPartialDebt(wmatic.address, wbtc.address, 9000);
+    await debtFlashSwap.connect(user).swapPartialDebt(wmatic.address, wbtc.address, 9000, 2);
 
     const usdcDebtBalAfter = await usdcDebt.balanceOf(user.address);
     const wmaticDebtBalAfter = await wmaticDebt.balanceOf(user.address);
@@ -255,6 +257,7 @@ describe("DebtFlashSwap Unit Tests", function () {
     console.log("USDC Debt : ", ethers.utils.formatUnits(usdcDebtBalAfter, usdcDebtDecimals));
     console.log("WBTC Debt : ", ethers.utils.formatUnits(wbtcDebtBalAfter, wbtcDebtDecimals));
     console.log("WMATIC Debt : ", ethers.utils.formatEther(wmaticDebtBalAfter));
+    console.log("--------------------------------------------------------------------------------");
     console.log("--------------------------------------------------------------------------------");
 
     expect(wbtcDebtBalAfter > 0).to.equal(true)
