@@ -8,17 +8,17 @@ const fs = require('fs');
 
 const polygonAlchemyKey = fs.readFileSync("secretPolygon").toString().trim();
 
-describe("DebtFlashSwap Unit Tests", function () {  
+describe("DebtFlashSwap Unit Tests on Polygon Mainnet", function () {  
   this.timeout(40000);
     
   /* ABIs */
-  const LendingPoolAbi = require("../external_abi/LendingPool.json");
-  const WETHabi = require("../external_abi/WETH.json");
-  const WMATICabi = require("../external_abi/WMATIC.json");
-  const WBTCabi = require("../external_abi/WBTC.json");
-  const USDCabi = require("../external_abi/USDC.json");
-  const DAIabi = require("../external_abi/DAI.json");
-  const variableDebtTokenABI = require("../external_abi/variableDebtToken.json");
+  const LendingPoolAbi = require("../../external_abi/LendingPool.json");
+  const WETHabi = require("../../external_abi/WETH.json");
+  const WMATICabi = require("../../external_abi/WMATIC.json");
+  const WBTCabi = require("../../external_abi/WBTC.json");
+  const USDCabi = require("../../external_abi/USDC.json");
+  const DAIabi = require("../../external_abi/DAI.json");
+  const variableDebtTokenABI = require("../../external_abi/variableDebtToken.json");
 
   /* Addresses */
   // USDC
