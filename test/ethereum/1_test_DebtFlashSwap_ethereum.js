@@ -13,7 +13,6 @@ describe("DebtFlashSwap Unit Tests on Ethereum Mainnet", function () {
     
   /* ABIs */
   const LendingPoolAbi = require("../../external_abi/LendingPool.json");
-  const WBTCabi = require("../../external_abi/WBTC_mainnet.json");
   const USDCabi = require("../../external_abi/USDC.json");
   const DAIabi = require("../../external_abi/DAI.json");
   const variableDebtTokenABI = require("../../external_abi/variableDebtToken.json");
@@ -30,15 +29,10 @@ describe("DebtFlashSwap Unit Tests on Ethereum Mainnet", function () {
   const DAIvDebt = "0x6C3c78838c761c6Ac7bE9F59fe808ea2A6E4379d";
   const DAIsDebt = "0x778A13D3eeb110A4f7bb6529F99c000119a08E92";
 
-  // WETH
+  // LINK
   const LINK = "0x514910771AF9Ca656af840dff83E8264EcF986CA";
   const LINKvDebt = "0x0b8f12b1788BFdE65Aa1ca52E3e9F3Ba401be16D";
   const LINKsDebt = "0xFB4AEc4Cc858F2539EBd3D37f2a43eAe5b15b98a";
-  
-  // WBTC
-  const WBTC = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
-  const WBTCvDebt = "0x9c39809Dec7F95F5e0713634a4D0701329B3b4d2";
-  const WBTCsDebt = "0x51B039b9AFE64B78758f8Ef091211b5387eA717c";
 
   // AAVE Lending Pool 
   const LENDINGPOOL = "0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9";
@@ -47,16 +41,14 @@ describe("DebtFlashSwap Unit Tests on Ethereum Mainnet", function () {
   // UNISWAP Factory (UniswapV2)
   const UNISWAPFACTORY = "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f";
 
+  const STABLE_RATE = 1;
+  const VARIABLE_RATE = 2;
 
   /* Provider */
   const provider = new ethers.providers.JsonRpcProvider();
 
   // Instantiating the existing mainnet fork contracts
   aave = new ethers.Contract(LENDINGPOOL, LendingPoolAbi, provider);
-
-  wbtc = new ethers.Contract(WBTC, WBTCabi, provider);
-  wbtcVdebt = new ethers.Contract(WBTCvDebt, variableDebtTokenABI, provider);
-  wbtcSdebt = new ethers.Contract(WBTCsDebt, stableDebtTokenABI, provider);
 
   dai = new ethers.Contract(DAI, DAIabi, provider);
   daiVdebt = new ethers.Contract(DAIvDebt, variableDebtTokenABI, provider);
@@ -101,11 +93,23 @@ describe("DebtFlashSwap Unit Tests on Ethereum Mainnet", function () {
       UNISWAPFACTORY
     );
 
-    const amountToTransfer = 20000;
     const USDCdecimals = await usdc.decimals();
+
+    const amountToTransfer = 20000;
+    const amountToDeposit = 10000;
+    const amountToBorrow = 100;
+
     const weiAmountToTransfer = ethers.utils.parseUnits(amountToTransfer.toString(), USDCdecimals);
-    
+    const weiAmountToDeposit = ethers.utils.parseUnits(amountToDeposit.toString(), USDCdecimals);
+    const weiAmountToBorrow = ethers.utils.parseUnits(amountToBorrow.toString(), USDCdecimals);
+
     await usdc.connect(whaleUSDC).transfer(user.address, weiAmountToTransfer);
+
+    await usdc.connect(user).approve(LENDINGPOOL, weiAmountToDeposit);
+    await aave.connect(user).deposit(USDC, weiAmountToDeposit, user.address, 0);
+    await aave.connect(user).borrow(USDC, weiAmountToBorrow, VARIABLE_RATE, 0, user.address);
+    
+    await usdc.connect(user).transfer(whaleUSDC.address, weiAmountToBorrow);
   });
 
   // Mine an empty block in between each test case
@@ -114,23 +118,7 @@ describe("DebtFlashSwap Unit Tests on Ethereum Mainnet", function () {
       await network.provider.send("evm_mine");
   });
 
-  it("should prepare the test setup", async () => {
-
-    const amountToDeposit = 10000;
-    const amountToBorrow = 100;
-    const USDCdecimals = await usdc.decimals();
-
-    const weiAmountToDeposit = ethers.utils.parseUnits(amountToDeposit.toString(), USDCdecimals);
-    const weiAmountToBorrow = ethers.utils.parseUnits(amountToBorrow.toString(), USDCdecimals);
-
-    await usdc.connect(user).approve(LENDINGPOOL, weiAmountToDeposit);
-    await aave.connect(user).deposit(USDC, weiAmountToDeposit, user.address, 0);
-    await aave.connect(user).borrow(USDC, weiAmountToBorrow, 2, 0, user.address);
-
-    await usdc.connect(user).transfer(whaleUSDC.address, weiAmountToBorrow);
-  });
-
-  it("should swap the full USDC debt into an DAI debt", async () => {
+  it("should swap the full USDC variable rate debt into a DAI debt", async () => {
     
     const amountToApprove = 20000;
     const weiAmountToApprove = ethers.utils.parseEther(amountToApprove.toString());
@@ -138,7 +126,6 @@ describe("DebtFlashSwap Unit Tests on Ethereum Mainnet", function () {
     const usdcDebtBalBefore = await usdcVdebt.balanceOf(user.address);
     const daiDebtBalBefore = await daiVdebt.balanceOf(user.address);
     const USDCvDebtDecimals = await usdcVdebt.decimals();
-
 
     console.log("--------------------------------------------------------------------------------");
     console.log("DAI Debt : ", ethers.utils.formatEther(daiDebtBalBefore));
@@ -150,7 +137,7 @@ describe("DebtFlashSwap Unit Tests on Ethereum Mainnet", function () {
     await daiVdebt.connect(user).approveDelegation(debtFlashSwap.address, weiAmountToApprove)
     console.log("Swapping USDC debt for DAI debt")
     console.log("--------------------------------------------------------------------------------");
-    await debtFlashSwap.connect(user).swapFullDebt(usdc.address, dai.address, 2);
+    await debtFlashSwap.connect(user).swapFullDebt(usdc.address, dai.address, VARIABLE_RATE);
 
     const usdcDebtBalAfter = await usdcVdebt.balanceOf(user.address);
     const daiDebtBalAfter = await daiVdebt.balanceOf(user.address);
