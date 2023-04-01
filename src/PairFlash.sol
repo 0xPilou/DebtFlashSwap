@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity ^0.8.18;
+pragma solidity =0.7.6;
 
 pragma abicoder v2;
 
-import '@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3FlashCallback.sol';
-import '@uniswap/v3-core/contracts/libraries/LowGasSafeMath.sol';
-
-import '@uniswap/v3-periphery/contracts/base/PeripheryPayments.sol';
-import '@uniswap/v3-periphery/contracts/base/PeripheryImmutableState.sol';
-import '@uniswap/v3-periphery/contracts/libraries/PoolAddress.sol';
-import '@uniswap/v3-periphery/contracts/libraries/CallbackValidation.sol';
-import '@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
-import '@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol';
+import './uniswap/v3-core/contracts/interfaces/callback/IUniswapV3FlashCallback.sol';
+import './uniswap/v3-core/contracts/libraries/LowGasSafeMath.sol';
+import './uniswap/v3-periphery/contracts/base/PeripheryPayments.sol';
+import './uniswap/v3-periphery/contracts/base/PeripheryImmutableState.sol';
+import './uniswap/v3-periphery/contracts/libraries/PoolAddress.sol';
+import './uniswap/v3-periphery/contracts/libraries/CallbackValidation.sol';
+import './uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
+import './uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol';
 
 /// @title Flash contract implementation
 /// @notice An example contract using the Uniswap V3 flash function
